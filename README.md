@@ -16,7 +16,7 @@
    - 使用 Git 克隆项目
 
      ```
-     git clone 
+     git clone https://github.com/jklincn/PaperDownloader.git
      ```
 
    - 在 GitHub 界面选择 Download ZIP，再解压
