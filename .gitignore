@@ -1,1 +1,4 @@
-chrome_temp_data/*
+__pycache__
+build
+dist
+*.spec
