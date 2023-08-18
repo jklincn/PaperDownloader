@@ -81,7 +81,7 @@ def download(driver: webdriver,Interval):
             except exceptions.NoSuchElementException:
                 continue
             else:
-                wanfang(driver)
+                wanfang(driver,Interval)
                 hit = True
     if hit:
         print("下载完成, 共找到 {} 处勾选, 成功下载 {} 项内容。\n".format(download_count, check_count))
