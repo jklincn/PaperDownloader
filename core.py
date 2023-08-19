@@ -1,12 +1,13 @@
+# pyinstaller -Fw --clean -n PaperDownloader -i icon.ico gui.py
+import os
+import shutil
+import time
+import subprocess
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common import exceptions
-import os
-import shutil
-import time
-import subprocess
 
 # Parameters
 WaitTime = 5
@@ -18,11 +19,25 @@ download_count = 0
 
 class Browse:
     def __init__(self):
-        self.name = ""
-        self.exe_path = ""
+        self.name = None
+        self.exe_path = None
+        self.user_data_path = None
 
     def open(self):
         pass
+
+    def driver(self) -> webdriver:
+        pass
+
+    def check(self) -> bool:
+        if os.path.exists(self.exe_path):
+            return True
+        else:
+            return False
+
+    def clean(self):
+        if os.path.exists(self.user_data_path):
+            shutil.rmtree(self.user_data_path)
 
 
 class Chrome(Browse):
@@ -30,19 +45,16 @@ class Chrome(Browse):
         self.name = "Google Chrome"
         self.exe_path = ChromePath
         self.user_data_path = os.environ["TEMP"] + "/chrome_temp_data"
-        self.port = "16888"
+        self.debug_port = "16888"
 
     def open(self):
-        if not os.path.exists(self.exe_path):
-            print("错误: 找不到 chrome.exe, 请手动设置 ChromePath。\n")
-            return
         # Create temporary folder
         if not os.path.exists(self.user_data_path):
             os.makedirs(self.user_data_path)
         subprocess.run(
             [
                 self.exe_path,
-                "--remote-debugging-port={}".format(self.port),
+                "--remote-debugging-port={}".format(self.debug_port),
                 "--user-data-dir={}".format(self.user_data_path),
             ]
         )
@@ -51,45 +63,53 @@ class Chrome(Browse):
         # Set browser options
         ChromeOptions = webdriver.ChromeOptions()
         ChromeOptions.add_experimental_option(
-            "debuggerAddress", "127.0.0.1:{}".format(self.port)
+            "debuggerAddress", "127.0.0.1:{}".format(self.debug_port)
         )
         service = webdriver.ChromeService(executable_path="chromedriver.exe")
-        driver = webdriver.Chrome(options=ChromeOptions,service=service)
-        return driver
+        try:
+            driver = webdriver.Chrome(options=ChromeOptions, service=service)
+        except exceptions.NoSuchDriverException:
+            print("错误：找不到 WebDriver 文件。请先点击右侧【获取 WebDriver】按钮。\n")
+            return None
+        else:
+            return driver
 
-    def clean(self):
-        if os.path.exists(self.user_data_path):
-            shutil.rmtree(self.user_data_path)
 
-
-def download(driver: webdriver,Interval):
-    # Find serach window
-    all_handles = driver.window_handles
-    hit = False
-    for handle in all_handles:
-        driver.switch_to.window(handle)
-        if driver.title == "检索-中国知网":
-            cnki(driver,Interval)
-            hit = True
-        elif driver.title == "高级检索-中国知网":
-            cnki(driver,Interval)
-            hit = True
-        elif driver.title == "万方数据知识服务平台":
-            # Ensure we are now in search window
-            try:
-                driver.find_element(By.CLASS_NAME, "normal-list")
-            except exceptions.NoSuchElementException:
-                continue
-            else:
-                wanfang(driver,Interval)
-                hit = True
-    if hit:
-        print("下载完成, 共找到 {} 处勾选, 成功下载 {} 项内容。\n".format(download_count, check_count))
+def download(driver: webdriver, Interval):
+    global download_count, check_count
+    download_count = 0
+    check_count = 0
+    if driver == None:
+        return
     else:
-        print("错误: 没有找到符合的检索页面\n")
+        print("正在接管浏览器控制，请不要操作。\n", flush=True)
+        # Find serach window
+        all_handles = driver.window_handles
+        hit = False
+        for handle in all_handles:
+            driver.switch_to.window(handle)
+            if driver.title == "检索-中国知网" or driver.title == "高级检索-中国知网":
+                cnki(driver, Interval)
+                hit = True
+            elif driver.title == "万方数据知识服务平台":
+                # Ensure we are now in search window
+                try:
+                    driver.find_element(By.CLASS_NAME, "normal-list")
+                except exceptions.NoSuchElementException:
+                    continue
+                else:
+                    wanfang(driver, Interval)
+                    hit = True
+        if hit:
+            print(
+                "下载完成, 共找到 {} 处勾选, 成功下载 {} 项内容。\n".format(check_count, download_count)
+            )
+        else:
+            print("错误: 没有找到符合的检索页面\n")
+        print("浏览器接管结束, 可以继续操作。\n", flush=True)
 
 
-def cnki(driver: webdriver,Interval):
+def cnki(driver: webdriver, Interval):
     print("检测到知网检索页面, 开始下载......\n")
     global download_count, check_count
     index_window = driver.current_window_handle
@@ -137,7 +157,7 @@ def cnki(driver: webdriver,Interval):
                     time.sleep(Interval)
 
 
-def wanfang(driver: webdriver,Interval):
+def wanfang(driver: webdriver, Interval):
     print("检测到万方检索页面, 开始下载......\n")
     global download_count, check_count
     index_window = driver.current_window_handle
@@ -178,25 +198,3 @@ def wanfang(driver: webdriver,Interval):
                     # Switch back to index
                     driver.switch_to.window(index_window)
                     download_count += 1
-
-
-# def usage():
-#     print("usage: python run.py <command>")
-#     print("Optional commands are as follows:")
-#     print("  prepare    Open the browser and prepare the website")
-#     print("  download   Start automated download")
-#     print("  clean      Delete temporary data directory")
-
-
-# if __name__ == "__main__":
-#     if len(sys.argv) == 2:
-#         if sys.argv[1] == "prepare":
-#             prepare()
-#         elif sys.argv[1] == "download":
-#             download()
-#         elif sys.argv[1] == "clean":
-#             clean()
-#         else:
-#             usage()
-#     else:
-#         usage()

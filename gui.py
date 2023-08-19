@@ -1,14 +1,15 @@
-from functools import partial
 import core
 import sys
 import ctypes
 import time
+import driver_helper
 from tkinter import *
 from tkinter import ttk
 from tkinter import scrolledtext
 from threading import Thread
+from functools import partial
 
-VERSION = "v1.0.0"
+VERSION = "v1.1.0"
 
 
 class StdoutRedirector(object):
@@ -45,6 +46,7 @@ def check_browse_alive(t_browse: Thread):
         if not t_browse.is_alive():
             print("检测到浏览器已关闭。\n")
             b_download["state"] = DISABLED
+            b_get_driver["state"] = DISABLED
             b_clean["state"] = NORMAL
             b_setting["state"] = NORMAL
             return
@@ -58,21 +60,22 @@ def bf_browse(browse_name):
         browse = core.Chrome(ChromePath)
     else:
         print("错误：不支持的浏览器\n")
-    # todo: 将异常从子线程转移到主线程处理
-    t_browse = Thread(target=browse.open, daemon=True)
-    t_browse.start()
-    t_browse_alive = Thread(target=check_browse_alive, args=[t_browse], daemon=True)
-    t_browse_alive.start()
-    b_download["state"] = NORMAL
-    b_clean["state"] = DISABLED
-    b_setting["state"] = DISABLED
-    print("请登录数据库网站进行内容检索, 在需要下载的论文前面打上勾, 点击【下载】按钮。\n")
+    if browse.check():
+        t_browse = Thread(target=browse.open, daemon=True)
+        t_browse.start()
+        t_browse_alive = Thread(target=check_browse_alive, args=[t_browse], daemon=True)
+        t_browse_alive.start()
+        b_download["state"] = NORMAL
+        b_clean["state"] = DISABLED
+        b_setting["state"] = DISABLED
+        b_get_driver["state"] = NORMAL
+        print("请登录数据库网站进行内容检索, 在需要下载的论文前面打上勾, 点击【下载】按钮。\n")
+    else:
+        print("错误: 找不到 {}.exe, 请手动设置可执行文件路径。\n".format(browse.name))
 
 
 def bf_download():
-    print("正在接管浏览器控制，请不要操作。\n", flush=True)
-    core.download(browse.driver(),int(Interval))
-    print("浏览器接管结束, 可以继续操作。\n", flush=True)
+    core.download(browse.driver(), int(Interval))
 
 
 def bf_exit():
@@ -108,13 +111,17 @@ def bf_setting():
     ttk.Label(f_chrome_path, text="Google Chrome 可执行文件路径: ", font=("微软雅黑", 12)).pack(
         side=LEFT
     )
-    Entry(f_chrome_path, textvariable=value["chrome_path"], font=('微软雅黑 12'), width=60).pack(side=LEFT)
+    Entry(
+        f_chrome_path, textvariable=value["chrome_path"], font=("微软雅黑 12"), width=60
+    ).pack(side=LEFT)
 
     # 下载间隔时间
     f_interval = ttk.Frame(win_setting)
     f_interval.pack(padx=20, expand=True)
     ttk.Label(f_interval, text="下载间隔时间(秒): ", font=("微软雅黑", 12)).pack(side=LEFT)
-    Entry(f_interval, textvariable=value["interval"], width=10, font=('微软雅黑 12')).pack(side=LEFT)
+    Entry(f_interval, textvariable=value["interval"], width=10, font=("微软雅黑 12")).pack(
+        side=LEFT
+    )
 
     # 确定按钮
     ttk.Button(
@@ -134,11 +141,21 @@ def bf_clean():
     print("浏览器所有设置已重置, 用户数据已清理。\n")
 
 
+def bf_get_driver():
+    global browse
+    print("正在自动获取 WebDriver。\n")
+    file = driver_helper.get_driver(browse)
+    if not file == None:
+        print("已自动下载 {}。\n".format(file))
+    else:
+        print("错误: 无法自动下载 WebDriver。\n")
+
+
 if __name__ == "__main__":
     win = Tk()
     win.title("论文批量下载器")
 
-    browse = None
+    browse: core.Browse = None
     ChromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
     Interval = "3"
 
@@ -160,6 +177,11 @@ if __name__ == "__main__":
         browse_frame, text="Google Chrome", command=partial(bf_browse, "chrome")
     )
     b_google_chrome.pack(padx=20, pady=20, expand=True, ipadx=20)
+    # 获取 WebDriver
+    b_get_driver = ttk.Button(
+        win, text="获取 WebDriver", state=DISABLED, command=bf_get_driver
+    )
+    b_get_driver.pack(padx=20, pady=20, expand=True, ipadx=20)
     # 下载
     b_download = ttk.Button(win, text="下载", state=DISABLED, command=bf_download)
     b_download.pack(padx=20, pady=20, expand=True)

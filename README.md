@@ -8,16 +8,17 @@
 
 数据库目前支持：[知网](https://www.cnki.net/)、[万方](https://www.wanfangdata.com.cn/)
 
-## 运行方法
+## 使用方法
 
-### 可执行文件（无需安装环境，推荐）
+### 可执行文件（推荐）
 
-1. 前往 release 页面下载最新文件
-2. 下载浏览器版本对应驱动（WebDriver），参考 [WebDriver 下载地址](#webdriver 下载地址)
-3. 将可执行文件与驱动放在同一文件夹下。
-4. 运行程序
+1. 前往 [release](https://github.com/jklincn/PaperDownloader/releases) 页面下载最新可执行文件，双击运行。
+2. 在可选浏览器中选择一个浏览器打开。
+3. 点击【获取 WebDriver】按钮，自动下载打开浏览器所对应的 WebDriver。**如果后续没有选择其他浏览器或者升级当前浏览器版本，则只需第一次使用时获取。**
+4. 在浏览器中打开相应数据库网站，登陆并检索所需内容，在需要下载的论文前面打上勾。
+5. 点击界面右侧【下载】按钮，开始自动模拟下载，等待下载结束。
 
-### 脚本（需要有 python 环境）
+### 运行源代码
 
 1. 下载本项目代码，有以下两种方法：
 
@@ -32,19 +33,15 @@
 2. 在 PaperDownloader 文件夹中打开终端，执行
 
    ```
-   pip install selenium==4.11.2
+   pip install -r requirements.txt
    python gui.py
    ```
 
-## 使用帮助
+3. 后续使用方法同上步骤【2-5】。
 
-### 具体步骤
+## 演示视频
 
-1. 通过界面右侧按钮打开一个浏览器。
-2. 在浏览器中打开相应数据库网站，登陆并检索所需内容，在需要下载的论文前面打上勾。
-3. 点击界面右侧【下载】按钮，开始自动模拟下载，等待下载结束。
-
-### 参数设置
+## 参数设置
 
 **默认情况下无需改动**。点击界面右侧【设置】按钮，即可打开设置面板。
 
@@ -52,34 +49,6 @@
 
 - Google Chrome 可执行文件路径
 - 下载间隔时间
-
-## 演示视频
-
-
-
-## WebDriver 下载地址
-
-### Google Chrome
-
-【设置-关于 Chrome】中可以查看 Google Chrome 版本号，在下面链接中寻找对应的 chromedriver 。
-
-新版本：https://googlechromelabs.github.io/chrome-for-testing/
-
-老版本：https://chromedriver.storage.googleapis.com/index.html
-
-## 可执行文件打包命令
-
-```
-pyinstaller -Fw --clean -n PaperDownloader -i icon.ico gui.py
-```
-
-## 更新日志
-
-2023-08-18：加入 GUI，打包成 EXE。
-
-2023-08-17：支持万方数据库，并且支持同时下载多个数据库，完善错误检查。
-
-2023-08-16：第一版发布，使用谷歌浏览器批量下载知网论文。
 
 ## 未来工作
 
@@ -91,8 +60,8 @@ pyinstaller -Fw --clean -n PaperDownloader -i icon.ico gui.py
 - [ ] 支持使用默认用户数据文件（这样可以使用原已保存在浏览器中的账号密码，快速登录知网）
 - [x] 更完善的操作错误检查提示
 - [ ] 支持 CAJ 下载（当 PDF 不可用时）
-- [ ] GitHub WorkFlow 自动打包 EXE
-- [ ] 自动下载对应浏览器版本的 WebDriver
+- [x] 自动下载对应浏览器版本的 WebDriver
+- [ ] 代码结构优化完善
 
 ## 已知问题
 
@@ -102,7 +71,7 @@ pyinstaller -Fw --clean -n PaperDownloader -i icon.ico gui.py
 
 2. 问题：使用脚本后，有可能会在桌面创建 Google Chrome 的快捷方式。
 
-   解决方法：浏览器默认设置问题，暂未解决。目前手动删除即可。
+   解决方法：浏览器默认设置问题，暂未解决。目前需要手动删除。
 
 ## 联系方式
 
