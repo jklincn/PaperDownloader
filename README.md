@@ -41,6 +41,8 @@
 
 ## 演示视频
 
+[【作者本人】知网/万方论文批量下载（ python + selenium + tkinter）](https://www.bilibili.com/video/BV1Gm4y1H76Z/)
+
 ## 参数设置
 
 **默认情况下无需改动**。点击界面右侧【设置】按钮，即可打开设置面板。
