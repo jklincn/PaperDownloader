@@ -34,8 +34,12 @@ def chrome(browse):
                     path = "chromedriver-win64.zip"
                     with requests.get(url, stream=True) as r:
                         if r.status_code != 200:
-                            error = "chromedriver 下载请求错误\n浏览器版本：{}\n驱动版本请求URL：{}\n驱动版本：{}\n驱动下载请求URL：{}".format(
-                                current_version, request_url, driver_version, url
+                            error = "chromedriver 下载请求错误\n当前工作路径：{}\n浏览器版本：{}\n驱动版本请求URL：{}\n驱动版本：{}\n驱动下载请求URL：{}".format(
+                                os.getcwd(),
+                                current_version,
+                                request_url,
+                                driver_version,
+                                url,
                             )
                             return error
                         with open(path, "wb") as f:
@@ -58,8 +62,8 @@ def chrome(browse):
     path = "chromedriver-win32.zip"
     with requests.get(url, stream=True) as r:
         if r.status_code != 200:
-            error = "chromedriver 下载请求错误\n浏览器版本：{}\n驱动版本请求URL：{}\n驱动版本：{}\n驱动下载请求URL：{}".format(
-                current_version, request_url, driver_version, url
+            error = "chromedriver 下载请求错误\n当前工作路径：{}\n浏览器版本：{}\n驱动版本请求URL：{}\n驱动版本：{}\n驱动下载请求URL：{}".format(
+                os.getcwd(), current_version, request_url, driver_version, url
             )
             return error
         with open(path, "wb") as f:
