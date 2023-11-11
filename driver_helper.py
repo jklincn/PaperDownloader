@@ -33,6 +33,11 @@ def chrome(browse):
                     url = platform["url"]
                     path = "chromedriver-win64.zip"
                     with requests.get(url, stream=True) as r:
+                        if r.status_code != 200:
+                            error = "chromedriver 下载请求错误\n浏览器版本：{}\n驱动版本请求URL：{}\n驱动版本：{}\n驱动下载请求URL：{}".format(
+                                current_version, request_url, driver_version, url
+                            )
+                            return error
                         with open(path, "wb") as f:
                             shutil.copyfileobj(r.raw, f)
                     with zipfile.ZipFile(path, "r") as zip_ref:
@@ -52,22 +57,28 @@ def chrome(browse):
     )
     path = "chromedriver-win32.zip"
     with requests.get(url, stream=True) as r:
+        if r.status_code != 200:
+            error = "chromedriver 下载请求错误\n浏览器版本：{}\n驱动版本请求URL：{}\n驱动版本：{}\n驱动下载请求URL：{}".format(
+                current_version, request_url, driver_version, url
+            )
+            return error
         with open(path, "wb") as f:
             shutil.copyfileobj(r.raw, f)
     with zipfile.ZipFile(path, "r") as zip_ref:
         zip_ref.extractall("chromedriver.exe")
-    os.remove(path)
+    if os.path.exists("chromedriver.exe"):
+        os.remove(path)
+        return "chromedriver.exe"
+    else:
+        return "解压失败"
 
 
+# 成功则返回驱动名，失败则返回错误信息
 def get_driver(browse):
     if browse.name == "Google Chrome":
         driver_name = "chromedriver.exe"
         if os.path.exists(driver_name):
             return driver_name
-        chrome(browse)
-        if os.path.exists(driver_name):
-            return driver_name
-        else:
-            return None
+        return chrome(browse)
     else:
         return None
