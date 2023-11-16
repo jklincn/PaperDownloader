@@ -4,7 +4,7 @@
 
 **注意：本项目不提供任何数据库下载账号，需要使用者自行准备。代码开源，保证不会窃取账号信息。**
 
-浏览器目前支持：[Google Chrome](https://www.google.com/chrome/)
+浏览器目前支持：[Google Chrome](https://www.google.com/chrome/)、[Microsoft Edge](https://www.microsoft.com/edge)
 
 数据库目前支持：[知网](https://www.cnki.net/)、[万方](https://www.wanfangdata.com.cn/)
 
@@ -30,7 +30,9 @@
 
    - 在 GitHub 界面选择 Download ZIP，再解压
 
-2. 在 PaperDownloader 文件夹中打开终端，执行
+2. 在 PaperDownloader 文件夹中打开终端，执行。
+
+   （运行参数可以通过 globals_config.py 文件修改）
 
    ```
    pip install -r requirements.txt
@@ -56,8 +58,8 @@
 
 未来工作取决于大家的需求反馈，可以通过 issue 或者 email 来提出需求。
 
-- [ ] 支持多种浏览器（Microsoft Edge、Mozilla Firefox等）
-- [ ] 支持多类数据库（**万方（已支持）**、维普等）
+- [x] 支持多种浏览器（Microsoft Edge、Mozilla Firefox等）
+- [ ] 支持多类数据库（**知网（已支持）**、**万方（已支持）**、维普等）
 - [x] 方便使用的图形用户界面
 - [ ] 支持使用默认用户数据文件（这样可以使用原已保存在浏览器中的账号密码，快速登录知网）
 - [x] 更完善的操作错误检查提示
@@ -71,9 +73,17 @@
 
    解决方法：增加下载间隔时间，分散下载操作。
 
-2. 问题：使用脚本后，有可能会在桌面创建 Google Chrome 的快捷方式。
+2. 问题：使用脚本后，有可能会在桌面创建浏览器的快捷方式。
 
    解决方法：浏览器默认设置问题，暂未解决。目前需要手动删除。
+
+3. 问题：若使用软件打开某浏览器前已有该浏览器在运行，则会导致异常的浏览器关闭检测
+
+   解决方法：在使用软件前先退出浏览器，然后用软件按钮打开浏览器。
+
+4. 问题：自动下载论文中弹出下载对话框（例如询问是保存文件还是打开文件）
+
+   解决方法：在浏览器的下载设置中关闭【每次下载都询问我该做些什么】类似选项。
 
 ## 联系方式
 

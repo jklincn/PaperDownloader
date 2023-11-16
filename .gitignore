@@ -3,3 +3,4 @@ build
 dist
 *.spec
 chromedriver.exe
+msedgedriver.exe

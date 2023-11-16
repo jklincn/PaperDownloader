@@ -3,6 +3,7 @@ import requests
 import json
 import zipfile
 import os
+import globals_config
 from win32com import client as win_client
 
 
@@ -13,10 +14,14 @@ def get_major_minor_build(version):
     return str
 
 
-def chrome(browse):
+# https://chromedriver.chromium.org/downloads
+def chrome():
+    # Delete old WebDriver
+    if os.path.exists(globals_config.ChromeDriverName):
+        os.remove(globals_config.ChromeDriverName)
     win_obj = win_client.Dispatch("Scripting.FileSystemObject")
     current_version = get_major_minor_build(
-        win_obj.GetFileVersion(browse.exe_path).strip()
+        win_obj.GetFileVersion(globals_config.ChromePath).strip()
     )
     latest_json = json.loads(
         requests.get(
@@ -40,7 +45,7 @@ def chrome(browse):
                     shutil.move("chromedriver-win64/chromedriver.exe", ".")
                     shutil.move(path, "chromedriver-win64")
                     shutil.rmtree("chromedriver-win64")
-                    return
+                    return globals_config.ChromeDriverName
     request_url = (
         "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_" + current_version
     )
@@ -55,19 +60,35 @@ def chrome(browse):
         with open(path, "wb") as f:
             shutil.copyfileobj(r.raw, f)
     with zipfile.ZipFile(path, "r") as zip_ref:
-        zip_ref.extractall("chromedriver.exe")
+        zip_ref.extractall(globals_config.ChromeDriverName)
     os.remove(path)
 
 
-def get_driver(browse):
-    if browse.name == "Google Chrome":
-        driver_name = "chromedriver.exe"
-        if os.path.exists(driver_name):
-            return driver_name
-        chrome(browse)
-        if os.path.exists(driver_name):
-            return driver_name
-        else:
+# https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/#downloads
+def edge():
+    # Delete old WebDriver
+    if os.path.exists(globals_config.EdgeDriverName):
+        os.remove(globals_config.EdgeDriverName)
+    win_obj = win_client.Dispatch("Scripting.FileSystemObject")
+    current_version = win_obj.GetFileVersion(globals_config.EdgePath).strip()
+    url = "https://msedgedriver.azureedge.net/{}/edgedriver_win64.zip".format(
+        current_version
+    )
+    path = "edgedriver_win64.zip"
+    with requests.get(url, stream=True) as r:
+        with open(path, "wb") as f:
+            shutil.copyfileobj(r.raw, f)
+    with zipfile.ZipFile(path, "r") as zip_ref:
+        zip_ref.extractall()
+    os.remove(path)
+    return globals_config.EdgeDriverName
+
+
+def get_driver(browse_name) -> str:
+    match browse_name:
+        case globals_config.ChromeName:
+            return chrome()
+        case globals_config.EdgeName:
+            return edge()
+        case _:
             return None
-    else:
-        return None

@@ -3,13 +3,12 @@ import sys
 import ctypes
 import time
 import driver_helper
+import globals_config
 from tkinter import *
 from tkinter import ttk
 from tkinter import scrolledtext
 from threading import Thread
 from functools import partial
-
-VERSION = "v1.1.0"
 
 
 class StdoutRedirector(object):
@@ -42,7 +41,7 @@ def high_resolution(win):
 
 
 def check_browse_alive(t_browse: Thread):
-    while 1:
+    while True:
         if not t_browse.is_alive():
             print("检测到浏览器已关闭。\n")
             b_download["state"] = DISABLED
@@ -55,11 +54,13 @@ def check_browse_alive(t_browse: Thread):
 
 def bf_browse(browse_name):
     global browse
-    if browse_name == "chrome":
-        print("使用浏览器: Google Chrome。\n")
-        browse = core.Chrome(ChromePath)
-    else:
-        print("错误：不支持的浏览器\n")
+    match browse_name:
+        case "chrome":
+            print("使用浏览器: Google Chrome。\n")
+            browse = core.Chrome()
+        case "edge":
+            print("使用浏览器: Microsoft Edge。\n")
+            browse = core.Edge()
     if browse.check():
         t_browse = Thread(target=browse.open, daemon=True)
         t_browse.start()
@@ -71,11 +72,11 @@ def bf_browse(browse_name):
         b_get_driver["state"] = NORMAL
         print("请登录数据库网站进行内容检索, 在需要下载的论文前面打上勾, 点击【下载】按钮。\n")
     else:
-        print("错误: 找不到 {}.exe, 请手动设置可执行文件路径。\n".format(browse.name))
+        print("错误: 找不到 {} 浏览器, 请手动设置可执行文件路径。\n".format(browse.name))
 
 
 def bf_download():
-    core.download(browse.driver(), int(Interval))
+    core.download(browse.driver(), browse.name)
 
 
 def bf_exit():
@@ -87,8 +88,8 @@ def log_bar(win):
     output.pack(expand=True, fill=BOTH, side=LEFT)
     sys.stdout = StdoutRedirector(output)
     print("=======================================")
-    print("欢迎使用论文批量下载器！")
-    print("当前版本: {}".format(VERSION))
+    print("欢迎使用论文批量下载器 PaperDownloader！")
+    print("当前版本: {}".format(globals_config.VERSION))
     print("=======================================")
     print("由于作者水平原因(为了自适应高分辨率), 请自行缩放窗口大小并拖动到合适位置")
     print("=======================================\n")
@@ -101,8 +102,8 @@ def bf_setting():
     window_set_to_center(win_setting)
 
     value = {
-        "chrome_path": StringVar(value=ChromePath),
-        "interval": StringVar(value="3"),
+        "chrome_path": StringVar(value=globals_config.ChromePath),
+        "interval": StringVar(value=globals_config.Interval),
     }
 
     # Google Chrome 可执行文件路径
@@ -130,21 +131,22 @@ def bf_setting():
 
 
 def bf_setting_done(win_setting, value):
-    global ChromePath
-    ChromePath = value["chrome_path"].get()
-    Interval = value["interval"].get()
+    globals_config.ChromePath = value["chrome_path"].get()
+    globals_config.Interval = value["interval"].get()
     win_setting.destroy()
 
 
 def bf_clean():
-    core.Chrome().clean()
-    print("浏览器所有设置已重置, 用户数据已清理。\n")
+    tmp = core.Chrome()
+    tmp.clean()
+    tmp = core.Edge()
+    tmp.clean()
+    print("所有浏览器设置已重置, 用户数据已清理。\n")
 
 
 def bf_get_driver():
-    global browse
     print("正在自动获取 WebDriver。\n")
-    file = driver_helper.get_driver(browse)
+    file = driver_helper.get_driver(browse.name)
     if not file == None:
         print("已自动下载 {}。\n".format(file))
     else:
@@ -153,11 +155,9 @@ def bf_get_driver():
 
 if __name__ == "__main__":
     win = Tk()
-    win.title("论文批量下载器")
+    win.title("PaperDownloader")
 
     browse: core.Browse = None
-    ChromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
-    Interval = "3"
 
     # todo：适配高分辨率
     high_resolution(win)
@@ -173,10 +173,16 @@ if __name__ == "__main__":
 
     # 按钮组
     # Google Chrome
-    b_google_chrome = ttk.Button(
-        browse_frame, text="Google Chrome", command=partial(bf_browse, "chrome")
+    b_chrome = ttk.Button(
+        browse_frame,
+        text=globals_config.ChromeName,
+        command=partial(bf_browse, "chrome"),
     )
-    b_google_chrome.pack(padx=20, pady=20, expand=True, ipadx=20)
+    b_chrome.pack(padx=20, pady=20, expand=True, ipadx=20)
+    b_edge = ttk.Button(
+        browse_frame, text=globals_config.EdgeName, command=partial(bf_browse, "edge")
+    )
+    b_edge.pack(padx=20, pady=20, expand=True, ipadx=20)
     # 获取 WebDriver
     b_get_driver = ttk.Button(
         win, text="获取 WebDriver", state=DISABLED, command=bf_get_driver
