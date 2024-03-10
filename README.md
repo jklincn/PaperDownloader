@@ -1,3 +1,5 @@
+# 项目暂时没有时间维护
+
 # 知网/万方论文批量下载
 
 使用 selenium 自动化工具模拟用户下载。
@@ -43,7 +45,7 @@
 
 ## 演示视频
 
-[【作者本人】知网/万方论文批量下载（ python + selenium + tkinter）](https://www.bilibili.com/video/BV1Gm4y1H76Z/)
+[【作者本人】知网/万方论文批量下载（ python + selenium + tkinter）](https://www.bilibili.com/video/BV1Gm4y1H76Z/)（未维护，已删）
 
 ## 参数设置
 
