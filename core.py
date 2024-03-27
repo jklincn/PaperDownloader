@@ -1,9 +1,9 @@
-# pyinstaller -Fw --clean -n PaperDownloader -i icon.ico gui.py
 import os
-import shutil
+import sys
 import time
 import subprocess
-import globals_config
+import config
+import driver_helper
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -19,97 +19,77 @@ class Browse:
     def __init__(self):
         self.name = None
         self.exe_path = None
-        self.user_data_path = None
         self.debug_port = None
+        self.driver_path = None
+        self.user_data_path = None
 
     def open(self):
-        pass
+        if not os.path.exists(self.user_data_path):
+            os.makedirs(self.user_data_path)
+        # require new user-data-dir
+        subprocess.Popen(
+            [
+                self.exe_path,
+                f"--remote-debugging-port={self.debug_port}",
+                f"--user-data-dir={self.user_data_path}",
+            ]
+        )
+
+    def check_exe_path(self):
+        if os.path.exists(self.exe_path):
+            print("成功")
+        else:
+            print("失败")
+            print("请检查路径：", self.exe_path)
+            sys.exit("查找可执行文件失败")
+
+    def check_driver(self):
+        if os.path.exists(self.driver_path):
+            print("成功")
+        else:
+            print("失败\n尝试自动下载 WebDriver...", end="")
+            driver_helper.get_driver(self.name)
+            print("成功")
 
     def driver(self) -> webdriver:
         pass
-
-    def check(self) -> bool:
-        if os.path.exists(self.exe_path):
-            return True
-        else:
-            return False
-
-    def clean(self):
-        if os.path.exists(self.user_data_path):
-            shutil.rmtree(self.user_data_path)
 
 
 class Chrome(Browse):
     def __init__(self):
-        self.name = globals_config.ChromeName
-        self.exe_path = globals_config.ChromePath
-        self.user_data_path = globals_config.ChromeUserDataPath
-        self.debug_port = globals_config.ChromeDebugPort
-
-    def open(self):
-        # Create temporary folder
-        if not os.path.exists(self.user_data_path):
-            os.makedirs(self.user_data_path)
-        subprocess.run(
-            [
-                self.exe_path,
-                "--remote-debugging-port={}".format(self.debug_port),
-                "--user-data-dir={}".format(self.user_data_path),
-            ]
-        )
+        self.name = config.ChromeName
+        self.exe_path = config.ChromePath
+        self.debug_port = config.ChromeDebugPort
+        self.driver_path = config.ChromeDriverName
+        self.user_data_path = config.ChromeUserDataPath
 
     def driver(self) -> webdriver:
-        # Set browser options
         ChromeOptions = webdriver.ChromeOptions()
         ChromeOptions.add_experimental_option(
-            "debuggerAddress", "127.0.0.1:{}".format(self.debug_port)
+            "debuggerAddress", f"127.0.0.1:{self.debug_port}"
         )
-        service = webdriver.ChromeService(
-            executable_path=globals_config.ChromeDriverName
-        )
-        try:
-            driver = webdriver.Chrome(options=ChromeOptions, service=service)
-        except exceptions.NoSuchDriverException:
-            print("错误：找不到 WebDriver 文件。请先点击右侧【获取 WebDriver】按钮。\n")
-            return None
-        else:
-            return driver
+        service = webdriver.ChromeService(executable_path=self.driver_path)
+        driver = webdriver.Chrome(options=ChromeOptions, service=service)
+        return driver
 
 
 # https://learn.microsoft.com/en-us/microsoft-edge/devtools-protocol-chromium/
 class Edge(Browse):
     def __init__(self):
-        self.name = globals_config.EdgeName
-        self.exe_path = globals_config.EdgePath
-        self.user_data_path = globals_config.EdgeUserDataPath
-        self.debug_port = globals_config.EdgeDebugPort
-
-    def open(self):
-        # Create temporary folder
-        if not os.path.exists(self.user_data_path):
-            os.makedirs(self.user_data_path)
-        subprocess.run(
-            [
-                self.exe_path,
-                "--remote-debugging-port={}".format(self.debug_port),
-                "--user-data-dir={}".format(self.user_data_path),
-            ]
-        )
+        self.name = config.EdgeName
+        self.exe_path = config.EdgePath
+        self.debug_port = config.EdgeDebugPort
+        self.driver_path = config.EdgeDriverName
+        self.user_data_path = config.EdgeUserDataPath
 
     def driver(self) -> webdriver:
-        # Set browser options
         EdgeOptions = webdriver.EdgeOptions()
         EdgeOptions.add_experimental_option(
-            "debuggerAddress", "127.0.0.1:{}".format(self.debug_port)
+            "debuggerAddress", f"127.0.0.1:{self.debug_port}"
         )
-        service = webdriver.EdgeService(executable_path=globals_config.EdgeDriverName)
-        try:
-            driver = webdriver.Edge(options=EdgeOptions, service=service)
-        except exceptions.NoSuchDriverException:
-            print("错误：找不到 WebDriver 文件。请先点击右侧【获取 WebDriver】按钮。\n")
-            return None
-        else:
-            return driver
+        service = webdriver.EdgeService(executable_path=self.driver_path)
+        driver = webdriver.Edge(options=EdgeOptions, service=service)
+        return driver
 
 
 def download(driver: webdriver, browse_name: str):
@@ -119,7 +99,7 @@ def download(driver: webdriver, browse_name: str):
     if driver == None:
         return
     else:
-        print("正在接管浏览器控制，请不要操作。\n", flush=True)
+        print("正在接管浏览器控制，请不要操作。", flush=True)
         # Find serach window
         all_handles = driver.window_handles
         hit = False
@@ -138,17 +118,17 @@ def download(driver: webdriver, browse_name: str):
                     wanfang(driver)
                     hit = True
         if hit:
-            print(
-                "下载完成, 共找到 {} 处勾选, 成功下载 {} 项内容。\n".format(check_count, download_count)
-            )
+            # fmt: off
+            print(f"下载完成, 共找到 {check_count} 处勾选, 成功下载 {download_count} 项内容。")
+            print(f"文件保存位置: {os.path.join(os.environ['USERPROFILE'], 'Downloads')}")
+            # fmt: on
         else:
             print("错误：没有找到符合的检索页面\n")
-        print("浏览器接管结束, 可以继续操作。\n", flush=True)
 
 
 def cnki(driver: webdriver, browse_name: str):
     global download_count, check_count
-    print("检测到知网检索页面, 开始下载......\n")
+    print("检测到知网检索页面, 开始下载......")
     index_window = driver.current_window_handle
     result = driver.find_element(By.CLASS_NAME, "result-table-list").find_element(
         By.TAG_NAME, "tbody"
@@ -163,32 +143,32 @@ def cnki(driver: webdriver, browse_name: str):
             current_window_number = len(driver.window_handles)
 
             rows[i].find_element(By.CLASS_NAME, "fz14").click()
-            WebDriverWait(driver, int(globals_config.WaitTime)).until(
+            WebDriverWait(driver, int(config.WaitTime)).until(
                 EC.number_of_windows_to_be(current_window_number + 1)
             )
             # Switch to new window
             driver.switch_to.window(driver.window_handles[-1])
-            WebDriverWait(driver, int(globals_config.WaitTime)).until(
+            WebDriverWait(driver, int(config.WaitTime)).until(
                 EC.element_to_be_clickable((By.ID, "pdfDown"))
             )
             try:
                 download_button = driver.find_element(By.ID, "pdfDown")
             except exceptions.NoSuchElementException:
                 name = rows[i].find_element(By.CLASS, "wx-tit").text
-                print("错误：不能下载 {}\n。".format(name))
+                print(f"错误：不能下载 {name}\n。")
                 continue
             else:
                 current_window_number = len(driver.window_handles)
                 download_button.click()
                 # edge 的 webdriver 有问题，页面关闭后数量不减
-                if browse_name == globals_config.EdgeName:
-                    time.sleep(int(globals_config.Interval))
+                if browse_name == config.EdgeName:
+                    time.sleep(int(config.Interval))
                     driver.close()
                     driver.switch_to.window(index_window)
                     download_count += 1
                 else:
                     try:
-                        WebDriverWait(driver, int(globals_config.WaitTime)).until(
+                        WebDriverWait(driver, int(config.WaitTime)).until(
                             EC.number_of_windows_to_be(current_window_number)
                         )
                     except exceptions.TimeoutException:
@@ -199,12 +179,12 @@ def cnki(driver: webdriver, browse_name: str):
                         # Switch back to index
                         driver.switch_to.window(index_window)
                         download_count += 1
-                        time.sleep(int(globals_config.Interval))
+                        time.sleep(int(config.Interval))
 
 
 def wanfang(driver: webdriver):
     global download_count, check_count
-    print("检测到万方检索页面, 开始下载......\n")
+    print("检测到万方检索页面, 开始下载......")
     index_window = driver.current_window_handle
     rows = driver.find_elements(By.CLASS_NAME, "normal-list")
     for i in range(len(rows)):
@@ -217,18 +197,16 @@ def wanfang(driver: webdriver):
             try:
                 download_button = rows[i].find_element(
                     By.CSS_SELECTOR,
-                    "div:nth-child({}) > .normal-list .t-DIB:nth-child(2) span".format(
-                        str(i + 1)
-                    ),
+                    f"div:nth-child({str(i + 1)}) > .normal-list .t-DIB:nth-child(2) span",
                 )
             except exceptions.NoSuchElementException:
                 name = rows[i].find_element(By.CLASS_NAME, "title").text
-                print("错误：不能下载 {}。\n".format(name))
+                print(f"错误：不能下载 {name}。\n")
                 continue
             else:
                 download_button.click()
                 # Switch to new window
-                WebDriverWait(driver, int(globals_config.WaitTime)).until(
+                WebDriverWait(driver, int(config.WaitTime)).until(
                     EC.number_of_windows_to_be(current_window_number + 1)
                 )
                 driver.switch_to.window(driver.window_handles[-1])
@@ -236,7 +214,7 @@ def wanfang(driver: webdriver):
                     print("错误：账号未登录或响应超时，下载中断。\n")
                     return
                 else:
-                    time.sleep(int(globals_config.Interval))
+                    time.sleep(int(config.Interval))
                     driver.close()
                     # Switch back to index
                     driver.switch_to.window(index_window)

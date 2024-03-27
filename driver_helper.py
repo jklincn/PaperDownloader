@@ -1,94 +1,66 @@
 import shutil
+import sys
+import traceback
 import requests
-import json
 import zipfile
 import os
-import globals_config
+import config
 from win32com import client as win_client
 
 
-def get_major_minor_build(version):
-    version = version.split(".")
-    version.pop()
-    str = ".".join(version)
-    return str
+def get_version(exe_path):
+    win_obj = win_client.Dispatch("Scripting.FileSystemObject")
+    version = win_obj.GetFileVersion(exe_path).strip()
+    return version
 
 
 # https://chromedriver.chromium.org/downloads
 def chrome():
-    # Delete old WebDriver
-    if os.path.exists(globals_config.ChromeDriverName):
-        os.remove(globals_config.ChromeDriverName)
-    win_obj = win_client.Dispatch("Scripting.FileSystemObject")
-    current_version = get_major_minor_build(
-        win_obj.GetFileVersion(globals_config.ChromePath).strip()
+    current_version = get_version(config.ChromePath)
+    url = "https://storage.googleapis.com/chrome-for-testing-public/{}/win64/chromedriver-win64.zip".format(
+        current_version
     )
-    latest_json = json.loads(
-        requests.get(
-            "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json"
-        ).text
-    )
-    for channels in latest_json["channels"]:
-        version = get_major_minor_build(latest_json["channels"][channels]["version"])
-        if current_version == version:
-            for platform in latest_json["channels"][channels]["downloads"][
-                "chromedriver"
-            ]:
-                if platform["platform"] == "win64":
-                    url = platform["url"]
-                    path = "chromedriver-win64.zip"
-                    with requests.get(url, stream=True) as r:
-                        with open(path, "wb") as f:
-                            shutil.copyfileobj(r.raw, f)
-                    with zipfile.ZipFile(path, "r") as zip_ref:
-                        zip_ref.extractall()
-                    shutil.move("chromedriver-win64/chromedriver.exe", ".")
-                    shutil.move(path, "chromedriver-win64")
-                    shutil.rmtree("chromedriver-win64")
-                    return globals_config.ChromeDriverName
-    request_url = (
-        "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_" + current_version
-    )
-    driver_version = requests.get(request_url).text
-    url = (
-        "https://chromedriver.storage.googleapis.com/{}/chromedriver_win32.zip".format(
-            driver_version
-        )
-    )
-    path = "chromedriver-win32.zip"
-    with requests.get(url, stream=True) as r:
-        with open(path, "wb") as f:
-            shutil.copyfileobj(r.raw, f)
-    with zipfile.ZipFile(path, "r") as zip_ref:
-        zip_ref.extractall(globals_config.ChromeDriverName)
-    os.remove(path)
+    zip_path = "chromedriver-win64.zip"
+    file_path = "chromedriver-win64/" + config.ChromeDriverName
+    try:
+        with requests.get(url, stream=True) as r:
+            with open(zip_path, "wb") as f:
+                shutil.copyfileobj(r.raw, f)
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            with zip_ref.open(file_path) as source_file:
+                content = source_file.read()
+                target_file_path = os.path.join(
+                    os.getcwd(), os.path.basename(file_path)
+                )
+                with open(target_file_path, "wb") as target_file:
+                    target_file.write(content)
+        os.remove(zip_path)
+    except BaseException as e:
+        raise requests.exceptions.RequestException(f"请手动下载 {url} 并将 {config.ChromeDriverName} 解压到当前目录") from e
 
 
 # https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/#downloads
 def edge():
-    # Delete old WebDriver
-    if os.path.exists(globals_config.EdgeDriverName):
-        os.remove(globals_config.EdgeDriverName)
-    win_obj = win_client.Dispatch("Scripting.FileSystemObject")
-    current_version = win_obj.GetFileVersion(globals_config.EdgePath).strip()
-    url = "https://msedgedriver.azureedge.net/{}/edgedriver_win64.zip".format(
-        current_version
-    )
-    path = "edgedriver_win64.zip"
-    with requests.get(url, stream=True) as r:
-        with open(path, "wb") as f:
-            shutil.copyfileobj(r.raw, f)
-    with zipfile.ZipFile(path, "r") as zip_ref:
-        zip_ref.extractall()
-    os.remove(path)
-    return globals_config.EdgeDriverName
+    current_version = get_version(config.EdgePath)
+    url = f"https://msedgedriver.azureedge.net/{current_version}/edgedriver_win64.zip"
+    zip_path = "edgedriver_win64.zip"
+    try:
+        with requests.get(url, stream=True) as r:
+            with open(zip_path, "wb") as f:
+                shutil.copyfileobj(r.raw, f)
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            zip_ref.extract(config.EdgeDriverName)
+        os.remove(zip_path)
+    except BaseException as e:
+        raise requests.exceptions.RequestException(f"请手动下载 {url} （可能需要科学上网）并将 {config.EdgeDriverName} 解压到当前目录") from e
 
 
-def get_driver(browse_name) -> str:
-    match browse_name:
-        case globals_config.ChromeName:
-            return chrome()
-        case globals_config.EdgeName:
-            return edge()
-        case _:
-            return None
+def get_driver(browse_name):
+    try:
+        match browse_name:
+            case config.ChromeName:
+                chrome()
+            case config.EdgeName:
+                edge()
+    except BaseException as e:
+        sys.exit(f"失败\n{e}")
