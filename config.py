@@ -1,11 +1,10 @@
 import os
 
-VERSION = "v1.2.0"
+VERSION = "v2.0.0"
 
-# settings
-# Download interval, Unit in seconds
+# Download interval (seconds)
 Interval = "3"
-# Download timeout, Unit in seconds
+# Download timeout (seconds)
 WaitTime = "5"
 
 # Chrome
