@@ -1,6 +1,9 @@
+import time
+import traceback
+
 import config
 import core
-import time
+
 
 def input_int() -> int:
     while True:
@@ -13,7 +16,7 @@ def input_int() -> int:
 
 if __name__ == "__main__":
 
-    browse : core.Browse
+    browse: core.Browse
 
     print("=======================================")
     print("欢迎使用论文批量下载器 PaperDownloader！")
@@ -33,26 +36,33 @@ if __name__ == "__main__":
         case 2:
             print("使用浏览器: Microsoft Edge")
             browse = core.Edge()
-
-    # 检查 webdriver
-    print("=======================================")
-    print("查找可执行文件......", end="")
-    browse.check_exe_path()
-    print("=======================================")
-    print("查找 WebDriver......", end="", flush=True)
-    browse.check_driver()
-    print("=======================================")
-    print("即将打开浏览器......",end="")
-    for t in range(3, 0, -1):
-        print(t, end="", flush=True)
-        time.sleep(1)
-    print()
-    browse.open()
-    print("=======================================")
-    input(
-        "请登录数据库网站进行内容检索, 在需要下载的论文前面打上勾，完成后输入回车键开始下载"
-    )
-    print("=======================================")
-    core.download(browse.driver(), browse.name)
-    print("=======================================")
-    print("程序结束", flush=True)
+    try:
+        # 检查 webdriver
+        print("=======================================")
+        print("查找可执行文件......", end="")
+        browse.check_exe_path()
+        print("=======================================")
+        print("查找 WebDriver......", end="", flush=True)
+        browse.check_driver()
+        print("=======================================")
+        print("即将打开浏览器......", end="")
+        for t in range(3, 0, -1):
+            print(t, end="", flush=True)
+            time.sleep(1)
+        print()
+        browse.open()
+        print("=======================================")
+        input(
+            "请登录数据库网站进行内容检索, 在需要下载的论文前面打上勾，完成后输入回车键开始下载"
+        )
+        print("=======================================")
+        core.download(browse.driver(), browse.name)
+        print("=======================================")
+        print("程序结束", flush=True)
+    except Exception as e:
+        print("程序发生异常，以下为异常信息", flush=True)
+        print("=======================================", flush=True)
+        traceback.print_exc()
+        print(f"版本信息: {core.collect_debug_info(browse.name, browse.exe_path)}")
+        print("=======================================")
+        print("在反馈时请务必提供以上所有异常信息，这将有助于问题分析")

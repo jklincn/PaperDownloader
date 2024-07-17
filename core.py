@@ -1,14 +1,18 @@
 import os
+import platform
+import subprocess
 import sys
 import time
-import subprocess
-import config
-import driver_helper
+
+import pkg_resources
 from selenium import webdriver
+from selenium.common import exceptions
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
-from selenium.common import exceptions
+
+import config
+import driver_helper
 
 # Global Variables
 check_count = 0
@@ -157,29 +161,28 @@ def cnki(driver: webdriver, browse_name: str):
                 name = rows[i].find_element(By.CLASS, "wx-tit").text
                 print(f"错误：不能下载 {name}\n。")
                 continue
+
+            current_window_number = len(driver.window_handles)
+            download_button.click()
+            # edge 的 webdriver 有问题，页面关闭后数量不减
+            if browse_name == config.EdgeName:
+                time.sleep(int(config.Interval))
+                driver.close()
+                driver.switch_to.window(index_window)
+                download_count += 1
             else:
-                current_window_number = len(driver.window_handles)
-                download_button.click()
-                # edge 的 webdriver 有问题，页面关闭后数量不减
-                if browse_name == config.EdgeName:
-                    time.sleep(int(config.Interval))
-                    driver.close()
-                    driver.switch_to.window(index_window)
-                    download_count += 1
-                else:
-                    try:
-                        WebDriverWait(driver, int(config.WaitTime)).until(
-                            EC.number_of_windows_to_be(current_window_number)
-                        )
-                    except exceptions.TimeoutException:
-                        print("错误：账号未登录或响应超时，下载中断。\n")
-                        return
-                    else:
-                        driver.close()
-                        # Switch back to index
-                        driver.switch_to.window(index_window)
-                        download_count += 1
-                        time.sleep(int(config.Interval))
+                try:
+                    WebDriverWait(driver, int(config.WaitTime)).until(
+                        EC.number_of_windows_to_be(current_window_number)
+                    )
+                except exceptions.TimeoutException:
+                    print("错误：账号未登录或响应超时，下载中断。\n")
+                    return
+                driver.close()
+                # Switch back to index
+                driver.switch_to.window(index_window)
+                download_count += 1
+                time.sleep(int(config.Interval))
 
 
 def wanfang(driver: webdriver):
@@ -203,19 +206,37 @@ def wanfang(driver: webdriver):
                 name = rows[i].find_element(By.CLASS_NAME, "title").text
                 print(f"错误：不能下载 {name}。\n")
                 continue
+
+            download_button.click()
+            # Switch to new window
+            WebDriverWait(driver, int(config.WaitTime)).until(
+                EC.number_of_windows_to_be(current_window_number + 1)
+            )
+            driver.switch_to.window(driver.window_handles[-1])
+            if driver.title == "万方登录":
+                print("错误：账号未登录或响应超时，下载中断。\n")
+                return
+            elif driver.title == "万方数据知识服务平台-无权限访问":
+                print("错误：账号无权限。\n")
+                return
             else:
-                download_button.click()
-                # Switch to new window
-                WebDriverWait(driver, int(config.WaitTime)).until(
-                    EC.number_of_windows_to_be(current_window_number + 1)
-                )
-                driver.switch_to.window(driver.window_handles[-1])
-                if driver.title == "万方登录":
-                    print("错误：账号未登录或响应超时，下载中断。\n")
-                    return
-                else:
-                    time.sleep(int(config.Interval))
-                    driver.close()
-                    # Switch back to index
-                    driver.switch_to.window(index_window)
-                    download_count += 1
+                time.sleep(int(config.Interval))
+                driver.close()
+                # Switch back to index
+                driver.switch_to.window(index_window)
+                download_count += 1
+
+
+def collect_debug_info(browse_name: str, browse_path: str) -> str:
+    message = "\n"
+    message += f"PaperDownloader: {config.VERSION}\n"
+    message += f"Python: {platform.python_version()}\n"
+    packages = ["selenium"]
+    for pkg in packages:
+        try:
+            version = pkg_resources.get_distribution(pkg).version
+            message += f"{pkg}: {version}\n"
+        except pkg_resources.DistributionNotFound:
+            message += f"{pkg} not install\n"
+    message += f"{browse_name}: {driver_helper.get_version(browse_path)}"
+    return message

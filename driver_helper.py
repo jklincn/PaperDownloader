@@ -1,11 +1,12 @@
+import os
 import shutil
 import sys
-import traceback
-import requests
 import zipfile
-import os
-import config
+
+import requests
 from win32com import client as win_client
+
+import config
 
 
 def get_version(exe_path):
@@ -36,7 +37,9 @@ def chrome():
                     target_file.write(content)
         os.remove(zip_path)
     except BaseException as e:
-        raise requests.exceptions.RequestException(f"请手动下载 {url} 并将 {config.ChromeDriverName} 解压到当前目录") from e
+        raise requests.exceptions.RequestException(
+            f"请手动下载 {url} 并将 {config.ChromeDriverName} 解压到当前目录"
+        ) from e
 
 
 # https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/#downloads
@@ -52,7 +55,9 @@ def edge():
             zip_ref.extract(config.EdgeDriverName)
         os.remove(zip_path)
     except BaseException as e:
-        raise requests.exceptions.RequestException(f"请手动下载 {url} （可能需要科学上网）并将 {config.EdgeDriverName} 解压到当前目录") from e
+        raise requests.exceptions.RequestException(
+            f"请手动下载 {url} （可能需要科学上网）并将 {config.EdgeDriverName} 解压到当前目录"
+        ) from e
 
 
 def get_driver(browse_name):

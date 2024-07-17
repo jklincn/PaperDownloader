@@ -1,6 +1,6 @@
 import os
 
-VERSION = "v2.0.0"
+VERSION = "v2.1.0"
 
 # Download interval (seconds)
 Interval = "3"
