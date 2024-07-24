@@ -100,34 +100,32 @@ def download(driver: webdriver, browse_name: str):
     global download_count, check_count
     download_count = 0
     check_count = 0
-    if driver == None:
-        return
-    else:
-        print("正在接管浏览器控制，请不要操作。", flush=True)
-        # Find serach window
-        all_handles = driver.window_handles
-        hit = False
-        for handle in all_handles:
-            driver.switch_to.window(handle)
-            if driver.title == "检索-中国知网" or driver.title == "高级检索-中国知网":
-                cnki(driver, browse_name)
+
+    print("正在接管浏览器控制，请不要操作。", flush=True)
+    # Find serach window
+    all_handles = driver.window_handles
+    hit = False
+    for handle in all_handles:
+        driver.switch_to.window(handle)
+        if driver.title == "检索-中国知网" or driver.title == "高级检索-中国知网":
+            cnki(driver, browse_name)
+            hit = True
+        elif driver.title == "万方数据知识服务平台":
+            # Ensure we are now in search window
+            try:
+                driver.find_element(By.CLASS_NAME, "normal-list")
+            except exceptions.NoSuchElementException:
+                continue
+            else:
+                wanfang(driver)
                 hit = True
-            elif driver.title == "万方数据知识服务平台":
-                # Ensure we are now in search window
-                try:
-                    driver.find_element(By.CLASS_NAME, "normal-list")
-                except exceptions.NoSuchElementException:
-                    continue
-                else:
-                    wanfang(driver)
-                    hit = True
-        if hit:
-            # fmt: off
-            print(f"下载完成, 共找到 {check_count} 处勾选, 成功下载 {download_count} 项内容。")
-            print(f"文件保存位置: {os.path.join(os.environ['USERPROFILE'], 'Downloads')}")
-            # fmt: on
-        else:
-            print("错误：没有找到符合的检索页面\n")
+    if hit:
+        # fmt: off
+        print(f"下载完成, 共找到 {check_count} 处勾选, 成功下载 {download_count} 项内容。")
+        print(f"文件保存位置: {os.path.join(os.environ['USERPROFILE'], 'Downloads')}")
+        # fmt: on
+    else:
+        print("错误：没有找到符合的检索页面\n")
 
 
 def cnki(driver: webdriver, browse_name: str):
@@ -152,18 +150,16 @@ def cnki(driver: webdriver, browse_name: str):
             )
             # Switch to new window
             driver.switch_to.window(driver.window_handles[-1])
-            WebDriverWait(driver, int(config.WaitTime)).until(
-                EC.element_to_be_clickable((By.ID, "pdfDown"))
+            download_button = WebDriverWait(driver, int(config.WaitTime)).until(
+                EC.element_to_be_clickable(
+                    (
+                        By.XPATH,
+                        '//li[@class="btn-dlpdf"]//a[@id="cajDown"] | //li[@class="btn-dlpdf"]//a[@id="pdfDown"]',
+                    )
+                )
             )
-            try:
-                download_button = driver.find_element(By.ID, "pdfDown")
-            except exceptions.NoSuchElementException:
-                name = rows[i].find_element(By.CLASS, "wx-tit").text
-                print(f"错误：不能下载 {name}\n。")
-                continue
-
-            current_window_number = len(driver.window_handles)
             download_button.click()
+            current_window_number = len(driver.window_handles)
             # edge 的 webdriver 有问题，页面关闭后数量不减
             if browse_name == config.EdgeName:
                 time.sleep(int(config.Interval))
@@ -227,16 +223,16 @@ def wanfang(driver: webdriver):
                 download_count += 1
 
 
-def collect_debug_info(browse_name: str, browse_path: str) -> str:
-    message = "\n"
-    message += f"PaperDownloader: {config.VERSION}\n"
-    message += f"Python: {platform.python_version()}\n"
+def get_version(browse_name: str, browse_path: str) -> str:
+    version = "\n"
+    version += f"PaperDownloader: {config.VERSION}\n"
+    version += f"Python: {platform.python_version()}\n"
     packages = ["selenium"]
     for pkg in packages:
         try:
             version = pkg_resources.get_distribution(pkg).version
-            message += f"{pkg}: {version}\n"
+            version += f"{pkg}: {version}\n"
         except pkg_resources.DistributionNotFound:
-            message += f"{pkg} not install\n"
-    message += f"{browse_name}: {driver_helper.get_version(browse_path)}"
-    return message
+            version += f"{pkg} not install\n"
+    version += f"{browse_name}: {driver_helper.get_version(browse_path)}"
+    return version

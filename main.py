@@ -19,7 +19,7 @@ if __name__ == "__main__":
     browse: core.Browse
 
     print("=======================================")
-    print("欢迎使用论文批量下载器 PaperDownloader！")
+    print("欢迎使用论文批量下载器 PaperDownloader")
     print(f"当前版本: {config.VERSION}")
     print("=======================================")
 
@@ -36,6 +36,8 @@ if __name__ == "__main__":
         case 2:
             print("使用浏览器: Microsoft Edge")
             browse = core.Edge()
+        case _:
+            exit("错误: 浏览器选择错误")
     try:
         # 检查 webdriver
         print("=======================================")
@@ -63,6 +65,6 @@ if __name__ == "__main__":
         print("程序发生异常，以下为异常信息", flush=True)
         print("=======================================", flush=True)
         traceback.print_exc()
-        print(f"版本信息: {core.collect_debug_info(browse.name, browse.exe_path)}")
+        print(f"版本信息: {core.get_version(browse.name, browse.exe_path)}")
         print("=======================================")
         print("在反馈时请务必提供以上所有异常信息，这将有助于问题分析")
