@@ -1,9 +1,9 @@
 import os
 
-VERSION = "2.1.1"
+VERSION = "2.2.0"
 
 # Download interval (seconds)
-Interval = "3"
+Interval = "1"
 # Download timeout (seconds)
 WaitTime = "5"
 

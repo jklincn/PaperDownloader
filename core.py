@@ -1,10 +1,14 @@
+import base64
+import importlib.metadata
 import os
 import platform
 import subprocess
 import sys
 import time
+from io import BytesIO
 
-import pkg_resources
+import ddddocr
+from PIL import Image
 from selenium import webdriver
 from selenium.common import exceptions
 from selenium.webdriver.common.by import By
@@ -68,12 +72,12 @@ class Chrome(Browse):
         self.user_data_path = config.ChromeUserDataPath
 
     def driver(self) -> webdriver:
-        ChromeOptions = webdriver.ChromeOptions()
-        ChromeOptions.add_experimental_option(
+        chrome_options = webdriver.ChromeOptions()
+        chrome_options.add_experimental_option(
             "debuggerAddress", f"127.0.0.1:{self.debug_port}"
         )
         service = webdriver.ChromeService(executable_path=self.driver_path)
-        driver = webdriver.Chrome(options=ChromeOptions, service=service)
+        driver = webdriver.Chrome(options=chrome_options, service=service)
         return driver
 
 
@@ -87,16 +91,16 @@ class Edge(Browse):
         self.user_data_path = config.EdgeUserDataPath
 
     def driver(self) -> webdriver:
-        EdgeOptions = webdriver.EdgeOptions()
-        EdgeOptions.add_experimental_option(
+        edge_options = webdriver.EdgeOptions()
+        edge_options.add_experimental_option(
             "debuggerAddress", f"127.0.0.1:{self.debug_port}"
         )
         service = webdriver.EdgeService(executable_path=self.driver_path)
-        driver = webdriver.Edge(options=EdgeOptions, service=service)
+        driver = webdriver.Edge(options=edge_options, service=service)
         return driver
 
 
-def download(driver: webdriver, browse_name: str):
+def download(driver: webdriver):
     global download_count, check_count
     download_count = 0
     check_count = 0
@@ -108,7 +112,7 @@ def download(driver: webdriver, browse_name: str):
     for handle in all_handles:
         driver.switch_to.window(handle)
         if driver.title == "检索-中国知网" or driver.title == "高级检索-中国知网":
-            cnki(driver, browse_name)
+            cnki(driver)
             hit = True
         elif driver.title == "万方数据知识服务平台":
             # Ensure we are now in search window
@@ -128,7 +132,7 @@ def download(driver: webdriver, browse_name: str):
         print("错误：没有找到符合的检索页面\n")
 
 
-def cnki(driver: webdriver, browse_name: str):
+def cnki(driver: webdriver):
     global download_count, check_count
     print("检测到知网检索页面, 开始下载......")
     index_window = driver.current_window_handle
@@ -137,48 +141,60 @@ def cnki(driver: webdriver, browse_name: str):
     )
     rows = result.find_elements(By.TAG_NAME, "tr")
     for i in range(len(rows)):
-        # Determine if selected
+        # 判断是否选中
         if not rows[i].find_element(By.CLASS_NAME, "cbItem").is_selected():
             continue
         else:
             check_count += 1
             current_window_number = len(driver.window_handles)
 
+            # 打开并切换到详情页
             rows[i].find_element(By.CLASS_NAME, "fz14").click()
             WebDriverWait(driver, int(config.WaitTime)).until(
                 EC.number_of_windows_to_be(current_window_number + 1)
             )
-            # Switch to new window
-            driver.switch_to.window(driver.window_handles[-1])
+            detail_window = driver.window_handles[-1]
+            driver.switch_to.window(detail_window)
+
+            # 寻找下载按钮
             download_button = WebDriverWait(driver, int(config.WaitTime)).until(
-                EC.element_to_be_clickable(
-                    (
-                        By.XPATH,
-                        '//li[@class="btn-dlpdf"]//a[@id="cajDown"] | //li[@class="btn-dlpdf"]//a[@id="pdfDown"]',
-                    )
+                EC.any_of(
+                    EC.element_to_be_clickable(
+                        # https://github.com/jklincn/PaperDownloader/issues/6
+                        (By.XPATH, '//li[@class="btn-dlpdf"]//a[@id="cajDown"]')
+                    ),
+                    EC.element_to_be_clickable(
+                        (By.XPATH, '//li[@class="btn-dlpdf"]//a[@id="pdfDown"]')
+                    ),
                 )
             )
-            download_button.click()
+            # 记录当前窗口数量
             current_window_number = len(driver.window_handles)
-            # edge 的 webdriver 有问题，页面关闭后数量不减
-            if browse_name == config.EdgeName:
-                time.sleep(int(config.Interval))
+
+            # 点击下载按钮
+            download_button.click()
+
+            # 等待页面打开
+            WebDriverWait(driver, int(config.WaitTime)).until(
+                EC.number_of_windows_to_be(current_window_number + 1)
+            )
+            driver.switch_to.window(driver.window_handles[-1])
+
+            # Todo: 对各类错误的处理，比如产品不在有效期范围之内和重新登陆。
+
+            # 处理滑动验证码
+            if driver.title == "滑动验证":
+                cnki_slide_verify(driver)
                 driver.close()
-                driver.switch_to.window(index_window)
-                download_count += 1
-            else:
-                try:
-                    WebDriverWait(driver, int(config.WaitTime)).until(
-                        EC.number_of_windows_to_be(current_window_number)
-                    )
-                except exceptions.TimeoutException:
-                    print("错误：账号未登录或响应超时，下载中断。\n")
-                    return
-                driver.close()
-                # Switch back to index
-                driver.switch_to.window(index_window)
-                download_count += 1
-                time.sleep(int(config.Interval))
+
+            # 关闭详情页
+            driver.switch_to.window(detail_window)
+            driver.close()
+
+            # 切换回检索页面
+            driver.switch_to.window(index_window)
+            download_count += 1
+            time.sleep(int(config.Interval))
 
 
 def wanfang(driver: webdriver):
@@ -227,12 +243,84 @@ def get_version(browse_name: str, browse_path: str) -> str:
     version = "\n"
     version += f"PaperDownloader: {config.VERSION}\n"
     version += f"Python: {platform.python_version()}\n"
-    packages = ["selenium"]
+    packages = ["selenium", "ddddocr"]
     for pkg in packages:
         try:
-            version = pkg_resources.get_distribution(pkg).version
-            version += f"{pkg}: {version}\n"
-        except pkg_resources.DistributionNotFound:
+            pkg_version = importlib.metadata.version(pkg)
+            version += f"{pkg}: {pkg_version}\n"
+        except importlib.metadata.PackageNotFoundError:
             version += f"{pkg} not install\n"
     version += f"{browse_name}: {driver_helper.get_version(browse_path)}"
     return version
+
+
+def cnki_slide_verify(driver: webdriver):
+    while True:
+        time.sleep(1)
+        # 获取背景图片并转换成字节
+        try:
+            background = WebDriverWait(driver, int(config.WaitTime)).until(
+                EC.presence_of_element_located(
+                    (
+                        By.XPATH,
+                        "/html/body/div/div/div/div[2]/div/div[1]/div/img",
+                    )
+                )
+            )
+        except exceptions.TimeoutException:
+            print("滑动验证码错误，自动重试......")
+            continue
+        background_src = background.get_attribute("src")
+        _, base64_str = background_src.split(",", 1)
+        background_bytes = base64.b64decode(base64_str)
+
+        # 计算图片缩放比例
+        rendered_width = background.size["width"]
+        img = Image.open(BytesIO(background_bytes))
+        intrinsic_width, _ = img.size
+        width_scale = rendered_width / intrinsic_width
+
+        # 获取缺口图片并转换成字节
+        target = WebDriverWait(driver, int(config.WaitTime)).until(
+            EC.presence_of_element_located(
+                (
+                    By.XPATH,
+                    "/html/body/div/div/div/div[2]/div/div[2]/div/div/div/img",
+                )
+            )
+        )
+        target_src = target.get_attribute("src")
+        _, base64_str = target_src.split(",", 1)
+        target_bytes = base64.b64decode(base64_str)
+
+        # 使用 ddddocr 库进行处理
+        det = ddddocr.DdddOcr(det=False, ocr=False, show_ad=False)
+        res = det.slide_match(target_bytes, background_bytes)
+
+        # 计算滑动距离
+        x_move_length = width_scale * res["target"][0] - 3  # 3 是观察所得的修正值
+
+        # 找到滑动按钮
+        slider = driver.find_element(
+            By.XPATH, "/html/body/div/div/div/div[2]/div/div[2]/div/div"
+        )
+
+        # 使用 ActionChains 拖动滑块
+        action = webdriver.ActionChains(driver)
+        action.click_and_hold(slider).perform()
+        action.move_by_offset(x_move_length, 0).perform()
+        time.sleep(0.5)
+        action.release().perform()
+
+        # 判断是否成功
+        try:
+            element = WebDriverWait(driver, int(config.WaitTime)).until(
+                EC.presence_of_element_located((By.XPATH, "/html/body/div/h4"))
+            )
+            if element.text == "验证成功，请稍等，正在下载中...":
+                return
+            else:
+                print("错误：滑动验证码处理错误")
+        except exceptions.TimeoutException:
+            print("滑动验证码错误，自动重试......")
+            continue

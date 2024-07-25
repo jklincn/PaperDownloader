@@ -53,14 +53,15 @@ if __name__ == "__main__":
             time.sleep(1)
         print()
         browse.open()
-        print("=======================================")
-        input(
-            "请登录数据库网站进行内容检索, 在需要下载的论文前面打上勾，完成后输入回车键开始下载"
-        )
-        print("=======================================")
-        core.download(browse.driver(), browse.name)
-        print("=======================================")
-        print("程序结束", flush=True)
+        while True:
+            print("=======================================")
+            # fmt: off
+            input("请登录数据库网站进行内容检索, 在需要下载的论文前面打上勾，完成后输入回车键开始下载")
+            # fmt: on
+            print("=======================================")
+            core.download(browse.driver())
+            print("=======================================")
+            print("本次下载结束，默认等待下一轮下载，可以使用 Ctrl+C 退出", flush=True)
     except Exception as e:
         print("程序发生异常，以下为异常信息", flush=True)
         print("=======================================", flush=True)
@@ -68,3 +69,5 @@ if __name__ == "__main__":
         print(f"版本信息: {core.get_version(browse.name, browse.exe_path)}")
         print("=======================================")
         print("在反馈时请务必提供以上所有异常信息，这将有助于问题分析")
+    except KeyboardInterrupt:
+        print("\n程序退出")
