@@ -18,9 +18,7 @@ def get_version(exe_path):
 # https://chromedriver.chromium.org/downloads
 def chrome():
     current_version = get_version(config.ChromePath)
-    url = "https://storage.googleapis.com/chrome-for-testing-public/{}/win64/chromedriver-win64.zip".format(
-        current_version
-    )
+    url = f"https://storage.googleapis.com/chrome-for-testing-public/{current_version}/win64/chromedriver-win64.zip"
     zip_path = "chromedriver-win64.zip"
     file_path = "chromedriver-win64/" + config.ChromeDriverName
     try:
@@ -38,7 +36,7 @@ def chrome():
         os.remove(zip_path)
     except BaseException as e:
         raise requests.exceptions.RequestException(
-            f"请手动下载 {url} 并将 {config.ChromeDriverName} 解压到当前目录"
+            f"请手动下载 {url} （可能需要科学上网）并将 {config.ChromeDriverName} 解压到当前目录"
         ) from e
 
 

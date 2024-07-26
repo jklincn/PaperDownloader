@@ -111,18 +111,19 @@ def download(driver: webdriver):
     hit = False
     for handle in all_handles:
         driver.switch_to.window(handle)
-        if driver.title == "检索-中国知网" or driver.title == "高级检索-中国知网":
-            cnki(driver)
-            hit = True
-        elif driver.title == "万方数据知识服务平台":
-            # Ensure we are now in search window
-            try:
-                driver.find_element(By.CLASS_NAME, "normal-list")
-            except exceptions.NoSuchElementException:
-                continue
-            else:
+        match driver.title:
+            case "检索-中国知网" | "高级检索-中国知网":
+                cnki(driver)
+                hit = True
+            case "万方数据知识服务平台":
+                # 万方的首页和搜索页是同一个标题，因此通过寻找元素来保证当前在搜索页
+                try:
+                    driver.find_element(By.CLASS_NAME, "normal-list")
+                except exceptions.NoSuchElementException:
+                    continue
                 wanfang(driver)
                 hit = True
+
     if hit:
         # fmt: off
         print(f"下载完成, 共找到 {check_count} 处勾选, 成功下载 {download_count} 项内容。")
@@ -136,20 +137,20 @@ def cnki(driver: webdriver):
     global download_count, check_count
     print("检测到知网检索页面, 开始下载......")
     index_window = driver.current_window_handle
-    result = driver.find_element(By.CLASS_NAME, "result-table-list").find_element(
-        By.TAG_NAME, "tbody"
-    )
-    rows = result.find_elements(By.TAG_NAME, "tr")
-    for i in range(len(rows)):
+
+    trs = driver.find_elements(By.XPATH, "//*[@class='result-table-list']/tbody/tr")
+
+    # 遍历每一个条目
+    for tr in trs:
         # 判断是否选中
-        if not rows[i].find_element(By.CLASS_NAME, "cbItem").is_selected():
+        if not tr.find_element(By.CLASS_NAME, "cbItem").is_selected():
             continue
         else:
             check_count += 1
             current_window_number = len(driver.window_handles)
 
             # 打开并切换到详情页
-            rows[i].find_element(By.CLASS_NAME, "fz14").click()
+            tr.find_element(By.CLASS_NAME, "fz14").click()
             WebDriverWait(driver, int(config.WaitTime)).until(
                 EC.number_of_windows_to_be(current_window_number + 1)
             )
@@ -256,15 +257,15 @@ def get_version(browse_name: str, browse_path: str) -> str:
 
 def cnki_slide_verify(driver: webdriver):
     while True:
+
+        # 等待加载
         time.sleep(1)
+
         # 获取背景图片并转换成字节
         try:
             background = WebDriverWait(driver, int(config.WaitTime)).until(
                 EC.presence_of_element_located(
-                    (
-                        By.XPATH,
-                        "/html/body/div/div/div/div[2]/div/div[1]/div/img",
-                    )
+                    (By.XPATH, "//div[@class='verify-img-panel']/img")
                 )
             )
         except exceptions.TimeoutException:
@@ -283,10 +284,7 @@ def cnki_slide_verify(driver: webdriver):
         # 获取缺口图片并转换成字节
         target = WebDriverWait(driver, int(config.WaitTime)).until(
             EC.presence_of_element_located(
-                (
-                    By.XPATH,
-                    "/html/body/div/div/div/div[2]/div/div[2]/div/div/div/img",
-                )
+                (By.XPATH, "//div[@class='verify-sub-block']/img")
             )
         )
         target_src = target.get_attribute("src")
@@ -298,12 +296,10 @@ def cnki_slide_verify(driver: webdriver):
         res = det.slide_match(target_bytes, background_bytes)
 
         # 计算滑动距离
-        x_move_length = width_scale * res["target"][0] - 3  # 3 是观察所得的修正值
+        x_move_length = width_scale * res["target"][0] - 2  # 2 是观察所得的修正值
 
         # 找到滑动按钮
-        slider = driver.find_element(
-            By.XPATH, "/html/body/div/div/div/div[2]/div/div[2]/div/div"
-        )
+        slider = driver.find_element(By.XPATH, "//div[@class='verify-move-block']")
 
         # 使用 ActionChains 拖动滑块
         action = webdriver.ActionChains(driver)
