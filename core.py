@@ -160,13 +160,14 @@ def cnki(driver: webdriver):
             # 寻找下载按钮
             download_button = WebDriverWait(driver, int(config.WaitTime)).until(
                 EC.any_of(
+                    # PDF
                     EC.element_to_be_clickable(
-                        # https://github.com/jklincn/PaperDownloader/issues/6
-                        (By.XPATH, '//li[@class="btn-dlpdf"]//a[@id="cajDown"]')
+                        (By.XPATH, "//a[@id='pdfDown' and @name='pdfDown']")
                     ),
+                    # CAJ or maybe PDF (See https://github.com/jklincn/PaperDownloader/issues/6)
                     EC.element_to_be_clickable(
-                        (By.XPATH, '//li[@class="btn-dlpdf"]//a[@id="pdfDown"]')
-                    ),
+                        (By.XPATH, "//a[@id='cajDown' and @name='cajDown']")
+                    )
                 )
             )
             # 记录当前窗口数量
