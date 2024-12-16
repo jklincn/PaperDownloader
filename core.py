@@ -162,9 +162,13 @@ def cnki(driver: webdriver):
                 EC.any_of(
                     # PDF
                     EC.element_to_be_clickable(
-                        (By.XPATH, "//a[@id='pdfDown' and @name='pdfDown']")
+                        (By.XPATH, "//li[@class='btn-dlpdf']//a[@id='pdfDown' and @name='pdfDown']")
                     ),
-                    # CAJ or maybe PDF (See https://github.com/jklincn/PaperDownloader/issues/6)
+                    EC.element_to_be_clickable(
+                        # See https://github.com/jklincn/PaperDownloader/issues/6)
+                        (By.XPATH, "//li[@class='btn-dlpdf']//a[@id='cajDown' and @name='cajDown']")
+                    ),
+                    # CAJ
                     EC.element_to_be_clickable(
                         (By.XPATH, "//a[@id='cajDown' and @name='cajDown']")
                     )
