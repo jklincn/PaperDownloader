@@ -1,14 +1,12 @@
-import base64
 import importlib.metadata
 import os
 import platform
 import subprocess
 import sys
 import time
-from io import BytesIO
 
 import ddddocr
-from PIL import Image
+import requests
 from selenium import webdriver
 from selenium.common import exceptions
 from selenium.webdriver.common.by import By
@@ -138,14 +136,10 @@ def cnki(driver: webdriver):
     print("检测到知网检索页面, 开始下载......")
     index_window = driver.current_window_handle
 
-    trs = driver.find_elements(By.XPATH, "//*[@class='result-table-list']/tbody/tr")
-
-    # 遍历每一个条目
-    for tr in trs:
-        # 判断是否选中
-        if not tr.find_element(By.CLASS_NAME, "cbItem").is_selected():
-            continue
-        else:
+    while True:
+        # 遍历每一个条目
+        trs = driver.find_elements(By.XPATH, "//*[@class='result-table-list']/tbody/tr")
+        for tr in trs:
             check_count += 1
             current_window_number = len(driver.window_handles)
 
@@ -162,34 +156,50 @@ def cnki(driver: webdriver):
                 EC.any_of(
                     # PDF
                     EC.element_to_be_clickable(
-                        (By.XPATH, "//li[@class='btn-dlpdf']//a[@id='pdfDown' and @name='pdfDown']")
+                        (
+                            By.XPATH,
+                            "//li[@class='btn-dlpdf']//a[@id='pdfDown' and @name='pdfDown']",
+                        )
                     ),
                     EC.element_to_be_clickable(
                         # See https://github.com/jklincn/PaperDownloader/issues/6)
-                        (By.XPATH, "//li[@class='btn-dlpdf']//a[@id='cajDown' and @name='cajDown']")
+                        (
+                            By.XPATH,
+                            "//li[@class='btn-dlpdf']//a[@id='cajDown' and @name='cajDown']",
+                        )
                     ),
                     # CAJ
                     EC.element_to_be_clickable(
                         (By.XPATH, "//a[@id='cajDown' and @name='cajDown']")
-                    )
+                    ),
                 )
             )
             # 记录当前窗口数量
             current_window_number = len(driver.window_handles)
 
             # 点击下载按钮
+            time.sleep(0.5)  # 可能有利于避开知网限制
             download_button.click()
 
             # 等待页面打开
             WebDriverWait(driver, int(config.WaitTime)).until(
                 EC.number_of_windows_to_be(current_window_number + 1)
             )
-            driver.switch_to.window(driver.window_handles[-1])
 
             # Todo: 对各类错误的处理，比如产品不在有效期范围之内和重新登陆。
 
+            # 目前已经是下载页面
+            driver.switch_to.window(driver.window_handles[-1])
+
+            # print(driver.title)
+
+            # 处理错误
+            error_title = "bar.cnki.net/bar/ErrorMsg.html?lang=zh-CN&ErrMsg=对不起，您的操作太过频繁！请退出后重新登录。"
+            if driver.title == error_title:
+                exit("错误：知网提示：操作太过频繁，请退出后重新登录。")
+
             # 处理滑动验证码
-            if driver.title == "滑动验证":
+            if driver.title == "拼图验证" or driver.title == "拼图校验-中国知网":
                 cnki_slide_verify(driver)
                 driver.close()
 
@@ -201,6 +211,12 @@ def cnki(driver: webdriver):
             driver.switch_to.window(index_window)
             download_count += 1
             time.sleep(int(config.Interval))
+
+        try:
+            driver.find_element(By.CSS_SELECTOR, "#PageNext.pagesnums").click()
+            time.sleep(1)
+        except exceptions.NoSuchElementException:
+            break
 
 
 def wanfang(driver: webdriver):
@@ -267,44 +283,36 @@ def cnki_slide_verify(driver: webdriver):
         time.sleep(1)
 
         # 获取背景图片并转换成字节
-        try:
-            background = WebDriverWait(driver, int(config.WaitTime)).until(
-                EC.presence_of_element_located(
-                    (By.XPATH, "//div[@class='verify-img-panel']/img")
-                )
+        background = WebDriverWait(driver, int(config.WaitTime)).until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "#aliyunCaptcha-img.puzzle")
             )
-        except exceptions.TimeoutException:
-            print("滑动验证码错误，自动重试......")
-            continue
-        background_src = background.get_attribute("src")
-        _, base64_str = background_src.split(",", 1)
-        background_bytes = base64.b64decode(base64_str)
+        )
 
-        # 计算图片缩放比例
-        rendered_width = background.size["width"]
-        img = Image.open(BytesIO(background_bytes))
-        intrinsic_width, _ = img.size
-        width_scale = rendered_width / intrinsic_width
+        background_src = background.get_attribute("src")
+        response = requests.get(background_src)
+        background_bytes = response.content
 
         # 获取缺口图片并转换成字节
         target = WebDriverWait(driver, int(config.WaitTime)).until(
             EC.presence_of_element_located(
-                (By.XPATH, "//div[@class='verify-sub-block']/img")
+                (By.CSS_SELECTOR, "#aliyunCaptcha-puzzle")
             )
         )
         target_src = target.get_attribute("src")
-        _, base64_str = target_src.split(",", 1)
-        target_bytes = base64.b64decode(base64_str)
+        response = requests.get(target_src)
+        target_bytes = response.content
 
         # 使用 ddddocr 库进行处理
         det = ddddocr.DdddOcr(det=False, ocr=False, show_ad=False)
         res = det.slide_match(target_bytes, background_bytes)
 
         # 计算滑动距离
-        x_move_length = width_scale * res["target"][0] - 2  # 2 是观察所得的修正值
+        # x_move_length = width_scale * res["target"][0]
+        x_move_length = res["target"][0] + 10
 
         # 找到滑动按钮
-        slider = driver.find_element(By.XPATH, "//div[@class='verify-move-block']")
+        slider = driver.find_element(By.CSS_SELECTOR, "#aliyunCaptcha-sliding-slider")
 
         # 使用 ActionChains 拖动滑块
         action = webdriver.ActionChains(driver)
@@ -312,16 +320,24 @@ def cnki_slide_verify(driver: webdriver):
         action.move_by_offset(x_move_length, 0).perform()
         time.sleep(0.5)
         action.release().perform()
-
-        # 判断是否成功
         try:
-            element = WebDriverWait(driver, int(config.WaitTime)).until(
-                EC.presence_of_element_located((By.XPATH, "/html/body/div/h4"))
-            )
-            if element.text == "验证成功，请稍等，正在下载中...":
-                return
-            else:
-                print("错误：滑动验证码处理错误")
-        except exceptions.TimeoutException:
+            WebDriverWait(driver, 1).until(EC.alert_is_present())
             print("滑动验证码错误，自动重试......")
+            alert = driver.switch_to.alert
+            print("弹窗内容:", alert.text)
+            alert.accept()
+            return
+        except exceptions.TimeoutException:
             continue
+        # # 判断是否成功
+        # try:
+        #     element = WebDriverWait(driver, int(config.WaitTime)).until(
+        #         EC.presence_of_element_located((By.CSS_SELECTOR, ".downLoading"))
+        #     )
+        #     if element.text == "验证成功，请稍等，正在下载中...":
+        #         return
+        #     else:
+        #         print("错误：滑动验证码处理错误")
+        # except exceptions.TimeoutException:
+        #     print("滑动验证码错误，自动重试......")
+        #     continue
