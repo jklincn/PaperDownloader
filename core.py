@@ -189,9 +189,8 @@ def cnki(driver: webdriver):
             # Todo: 对各类错误的处理，比如产品不在有效期范围之内和重新登陆。
 
             # 处理滑动验证码
-            if driver.title == "滑动验证":
-                cnki_slide_verify(driver)
-                driver.close()
+            if driver.title == "拼图验证" or driver.title == "拼图校验-中国知网":
+                exit("错误：知网滑动验证码接口已更新，暂未适配\n")
 
             # 关闭详情页
             driver.switch_to.window(detail_window)
